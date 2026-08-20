@@ -75,7 +75,7 @@ func (e *ExecManager) Quit(dataDir string, timeout time.Duration) error {
 
 func (e *ExecManager) pidsForDataDir(dataDir string) ([]int, error) {
 	needle := fmt.Sprintf("--user-data-dir=%s", dataDir)
-	out, err := exec.Command("pgrep", "-f", needle).Output()
+	out, err := exec.Command("pgrep", "-f", "--", needle).Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
 			return nil, nil
