@@ -20,7 +20,8 @@ jobs:
 
       - name: Build arm64
         run: |
-          go build -ldflags "-s -w" -o clauds ./cmd/clauds
+          VERSION="${GITHUB_REF_NAME#v}"
+          go build -ldflags "-s -w -X main.version=${VERSION}" -o clauds ./cmd/clauds
 
       - name: Package
         run: |
