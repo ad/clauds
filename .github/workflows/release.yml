@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Build arm64
+        run: |
+          go build -ldflags "-s -w" -o clauds ./cmd/clauds
+
+      - name: Package
+        run: |
+          tar -czf clauds-macos.tar.gz clauds
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clauds-macos
+          path: clauds-macos.tar.gz
+
+  release:
+    needs: build-macos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: clauds-macos
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: clauds-macos.tar.gz
+          generate_release_notes: true
