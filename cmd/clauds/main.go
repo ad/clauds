@@ -17,7 +17,7 @@ import (
 
 var version = "dev"
 
-var reserved = []string{"open", "add", "ls", "rm", "doctor", "config", "all"}
+var reserved = []string{"open", "add", "ls", "rm", "doctor", "config", "all", "run", "skills"}
 
 func main() {
 	sigCh := make(chan os.Signal, 1)
@@ -114,6 +114,26 @@ func parseAndRun(p *paths.Paths, pm process.Manager, args []string) error {
 		}
 		return commands.AddAccount(p, pm, name, email)
 
+	case "run":
+		if len(args) < 3 {
+			return fmt.Errorf("missing account name — usage: clauds run <name> [-- command ...]")
+		}
+		acct, err := account.Resolve(p, args[2])
+		if err != nil {
+			return err
+		}
+		argv := args[3:]
+		if len(argv) > 0 && argv[0] == "--" {
+			argv = argv[1:]
+		}
+		return commands.Run(p, acct, argv)
+
+	case "skills":
+		if len(args) < 3 || args[2] != "sync" {
+			return fmt.Errorf("usage: clauds skills sync")
+		}
+		return commands.SyncSkills(p)
+
 	case "ls":
 		return commands.List(p, pm, hasFlag(args, "--json"))
 
@@ -150,6 +170,8 @@ USAGE
   clauds <name>              open that account's window
   clauds all                 open every account's window
   clauds add <name>          save a new account
+  clauds run <name> [-- cmd] run cmd (default: claude) with that account's Claude Code config
+  clauds skills sync         copy accounts' own claude.ai skills into ~/.claude/skills
   clauds ls                  list saved accounts
   clauds rm <name>           forget an account
   clauds doctor              check environment health
@@ -163,6 +185,7 @@ FLAGS
 EXAMPLES
   clauds add work --email you@company.com
   clauds personal
+  clauds run work -- claude --resume
   clauds ls --json`)
 }
 

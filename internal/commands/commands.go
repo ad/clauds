@@ -4,14 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ad/clauds/internal/account"
+	"github.com/ad/clauds/internal/claudeconfig"
 	"github.com/ad/clauds/internal/codesessions"
 	"github.com/ad/clauds/internal/config"
 	"github.com/ad/clauds/internal/doctor"
 	"github.com/ad/clauds/internal/paths"
 	"github.com/ad/clauds/internal/process"
+	"github.com/ad/clauds/internal/skills"
 )
 
 const quitTimeout = 15 * time.Second
@@ -40,8 +47,9 @@ func OpenAccount(p *paths.Paths, pm process.Manager, acct *account.Account) erro
 	}
 	rc := config.Resolve(p, cfg)
 	ensureSharedSessions(rc, acct)
+	ensureClaudeConfig(p, acct)
 
-	if err := pm.Launch(p.App, data); err != nil {
+	if err := pm.Launch(p.App, data, claudeconfig.Dir(acct)); err != nil {
 		return err
 	}
 
@@ -83,7 +91,8 @@ func OpenAll(p *paths.Paths, pm process.Manager) error {
 			continue
 		}
 		ensureSharedSessions(rc, a)
-		if err := pm.Launch(p.App, a.DataDir()); err != nil {
+		ensureClaudeConfig(p, a)
+		if err := pm.Launch(p.App, a.DataDir(), claudeconfig.Dir(a)); err != nil {
 			return err
 		}
 		opened++
@@ -116,8 +125,9 @@ func AddAccount(p *paths.Paths, pm process.Manager, name string, email *string) 
 	}
 	rc := config.Resolve(p, cfg)
 	ensureSharedSessions(rc, acct)
+	ensureClaudeConfig(p, acct)
 
-	if err := pm.Launch(p.App, acct.DataDir()); err != nil {
+	if err := pm.Launch(p.App, acct.DataDir(), claudeconfig.Dir(acct)); err != nil {
 		return err
 	}
 
@@ -293,6 +303,59 @@ func ensureSharedSessions(rc *config.Resolved, acct *account.Account) {
 		fmt.Fprintf(os.Stderr, "note: couldn't link %s's chats for meld (%s); continuing.\n", acct.Meta.Name, err)
 	}
 	_ = codesessions.EnsureMeldAccountFolder(acct, rc.CodeSessions)
+}
+
+func ensureClaudeConfig(p *paths.Paths, acct *account.Account) {
+	if err := claudeconfig.Ensure(acct, p.ClaudeHome(), p.ClaudeJSON()); err != nil {
+		fmt.Fprintf(os.Stderr, "note: couldn't prepare %s's Claude Code config (%s); continuing.\n", acct.Meta.Name, err)
+	}
+}
+
+func Run(p *paths.Paths, acct *account.Account, argv []string) error {
+	ensureClaudeConfig(p, acct)
+	if len(argv) == 0 {
+		argv = []string{"claude"}
+	}
+	bin, err := exec.LookPath(argv[0])
+	if err != nil {
+		return err
+	}
+	// syscall.Exec keeps duplicates, and getenv returns the first: drop one inherited from a Desktop terminal
+	env := slices.DeleteFunc(os.Environ(), func(kv string) bool { return strings.HasPrefix(kv, "CLAUDE_CONFIG_DIR=") })
+	env = append(env, "CLAUDE_CONFIG_DIR="+claudeconfig.Dir(acct))
+	return syscall.Exec(bin, argv, env)
+}
+
+func SyncSkills(p *paths.Paths) error {
+	accounts, err := account.List(p)
+	if err != nil {
+		return err
+	}
+	dst := filepath.Join(p.ClaudeHome(), "skills")
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		return err
+	}
+
+	copied := 0
+	for _, a := range accounts {
+		results, err := skills.Sync(a, dst)
+		for _, r := range results {
+			switch {
+			case r.Err != nil:
+				fmt.Fprintf(os.Stderr, "✗ %s  ← %s: %s\n", r.Name, a.Meta.Name, r.Err)
+			case r.Copied:
+				copied++
+				fmt.Printf("✓ %s  ← %s\n", r.Name, a.Meta.Name)
+			default:
+				fmt.Printf("· %s  already in %s, kept\n", r.Name, dst)
+			}
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "note: skipped the rest of %s's skills (%s)\n", a.Meta.Name, err)
+		}
+	}
+	fmt.Printf("✓ Synced %d skill(s) into %s.\n", copied, dst)
+	return nil
 }
 
 func Now() string {

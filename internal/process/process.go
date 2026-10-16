@@ -9,7 +9,7 @@ import (
 )
 
 type Manager interface {
-	Launch(appBundle, dataDir string) error
+	Launch(appBundle, dataDir, configDir string) error
 	IsRunning(dataDir string) (bool, error)
 	Activate(appBundle string) error
 	Quit(dataDir string, timeout time.Duration) error
@@ -17,8 +17,10 @@ type Manager interface {
 
 type ExecManager struct{}
 
-func (e *ExecManager) Launch(appBundle, dataDir string) error {
-	cmd := exec.Command("open", "-n", "-a", appBundle, "--args", fmt.Sprintf("--user-data-dir=%s", dataDir))
+func (e *ExecManager) Launch(appBundle, dataDir, configDir string) error {
+	cmd := exec.Command("open", "-n", "-a", appBundle,
+		"--env", "CLAUDE_CONFIG_DIR="+configDir,
+		"--args", fmt.Sprintf("--user-data-dir=%s", dataDir))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

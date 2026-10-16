@@ -48,6 +48,14 @@ func (p *Paths) DefaultCodeSessionsRoot() string {
 	return filepath.Join(p.Home, "Library", "Application Support", "Claude", "claude-code-sessions")
 }
 
+func (p *Paths) ClaudeHome() string {
+	return filepath.Join(p.Home, ".claude")
+}
+
+func (p *Paths) ClaudeJSON() string {
+	return filepath.Join(p.Home, ".claude.json")
+}
+
 func (p *Paths) MeldConfig() string {
 	return filepath.Join(p.Home, ".meld", "config.toml")
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/ad/clauds/internal/account"
+	"github.com/ad/clauds/internal/claudeconfig"
 	"github.com/ad/clauds/internal/codesessions"
 	"github.com/ad/clauds/internal/config"
 	"github.com/ad/clauds/internal/paths"
@@ -18,12 +19,14 @@ type Check struct {
 }
 
 type AccountHealth struct {
-	Slot        uint32  `json:"slot"`
-	Name        string  `json:"name"`
-	Email       *string `json:"email,omitempty"`
-	Running     bool    `json:"running"`
-	Initialized bool    `json:"initialized"`
-	ChatsShared bool    `json:"chats_shared"`
+	Slot        uint32   `json:"slot"`
+	Name        string   `json:"name"`
+	Email       *string  `json:"email,omitempty"`
+	Running     bool     `json:"running"`
+	Initialized bool     `json:"initialized"`
+	ChatsShared bool     `json:"chats_shared"`
+	OwnConfig   bool     `json:"own_claude_config"`
+	Unshared    []string `json:"unshared,omitempty"`
 }
 
 type Report struct {
@@ -87,6 +90,7 @@ func Run(p *paths.Paths, pm process.Manager) (*Report, error) {
 		running, _ := pm.IsRunning(a.DataDir())
 		initialized := paths.PathExists(filepath.Join(a.DataDir(), "config.json"))
 		chatsShared := codesessions.IsLinked(a, rc.CodeSessions)
+		ownConfig := paths.PathExists(claudeconfig.Dir(a))
 
 		accounts = append(accounts, AccountHealth{
 			Slot:        a.Meta.Slot,
@@ -95,6 +99,8 @@ func Run(p *paths.Paths, pm process.Manager) (*Report, error) {
 			Running:     running,
 			Initialized: initialized,
 			ChatsShared: chatsShared,
+			OwnConfig:   ownConfig,
+			Unshared:    claudeconfig.Drifted(a, p.ClaudeHome()),
 		})
 	}
 
@@ -136,10 +142,18 @@ func PrintHuman(report *Report) {
 			if a.ChatsShared {
 				shared = "  ↔ chats shared"
 			}
+			if a.OwnConfig {
+				shared += "  ⧉ own Claude Code config"
+			} else {
+				shared += "  (shares ~/.claude — reopen to isolate)"
+			}
 			if a.Email != nil {
 				fmt.Printf("    %d. %s  ·  %s%s%s%s\n", a.Slot, a.Name, *a.Email, dot, state, shared)
 			} else {
 				fmt.Printf("    %d. %s%s%s%s\n", a.Slot, a.Name, dot, state, shared)
+			}
+			for _, n := range a.Unshared {
+				fmt.Printf("       ⚠ %s is no longer linked to ~/.claude/%s\n", n, n)
 			}
 		}
 	}

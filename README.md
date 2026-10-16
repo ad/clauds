@@ -44,6 +44,8 @@ clauds                                    # interactive picker
 | `clauds <name>` | Open that account |
 | `clauds all` | Open every account |
 | `clauds add <name>` | Create a new account |
+| `clauds run <name> [-- cmd]` | Run `cmd` (default `claude`) with that account's Claude Code config |
+| `clauds skills sync` | Copy accounts' own claude.ai skills into `~/.claude/skills` |
 | `clauds ls` | List saved accounts |
 | `clauds rm <name>` | Remove an account |
 | `clauds doctor` | Check environment health |
@@ -70,6 +72,42 @@ clauds config set app-path /path/to/Claude.app
 | `app-path` | `/Applications/Claude.app` | Path to Claude.app |
 | `share-code-sessions` | `on` | Symlink chat folders for meld |
 | `code-sessions-root` | `~/Library/Application Support/Claude/claude-code-sessions` | Where shared chats live |
+
+## Claude Code isolation
+
+Claude Desktop alone only separates its own data via `--user-data-dir`. The Code tab and terminal `claude` would still share `~/.claude` and `~/.claude.json`: one machineID/userID, one history, one memory.
+
+So each account also gets its own `CLAUDE_CONFIG_DIR` at `accounts/<slot>-<name>/claude-config/`, passed to Claude Desktop on launch:
+
+- **Shared** (symlinks to `~/.claude`): `settings.json`, `settings.local.json`, `keybindings.json`, top-level `*.md`, `agents`, `commands`, `skills`, `hooks`, `plugins`, `output-styles`, `rules`.
+- **Per account**: `.claude.json` (seeded with your `mcpServers` only), sign-in, `projects` (transcripts and memory), history, sessions, telemetry, caches.
+
+Links are created on every open and never overwrite existing files. If Claude Code replaces a link with a regular file, `clauds doctor` shows it.
+
+Existing accounts switch over on their next launch. Quit them first: an already running window keeps the old shared config. Code sessions started before the switch keep their transcripts in `~/.claude/projects`.
+
+For the terminal:
+
+```bash
+clauds run work                    # claude as the work account
+clauds run work -- claude --resume
+```
+
+The first `clauds run` asks you to sign in: Claude Code keys its Keychain entry by config dir.
+
+### Skills
+
+`~/.claude/skills` is shared, so every account's Claude Code sees the same skills.
+
+Skills uploaded to a claude.ai account stay on that account. Claude Desktop caches them locally, and `clauds skills sync` copies the ones you created (not Anthropic's built-ins) into `~/.claude/skills`:
+
+```bash
+$ clauds skills sync
+✓ golang-pro  ← work
+✓ Synced 1 skill(s) into /Users/you/.claude/skills.
+```
+
+A skill already in `~/.claude/skills` is never overwritten. To pick up a newer version, delete the local copy and sync again. Open each account in Desktop once beforehand so its cache is current.
 
 ### Meld integration
 
