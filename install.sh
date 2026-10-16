@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # clauds installer.
 #
-#   curl -fsSL https://raw.githubusercontent.com/ad/clauds/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ad/clauds/master/install.sh | bash
 #
 # Works two ways:
 #   * piped from curl (no clone)      -> downloads a prebuilt binary from the

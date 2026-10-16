@@ -13,7 +13,7 @@ $ clauds
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ad/clauds/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ad/clauds/master/install.sh | bash
 ```
 
 Or build from source:
