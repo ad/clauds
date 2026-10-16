@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -11,7 +12,7 @@ import (
 type Manager interface {
 	Launch(appBundle, dataDir, configDir string) error
 	IsRunning(dataDir string) (bool, error)
-	Activate(appBundle string) error
+	Activate(dataDir string) error
 	Quit(dataDir string, timeout time.Duration) error
 }
 
@@ -37,10 +38,29 @@ func (e *ExecManager) IsRunning(dataDir string) (bool, error) {
 	return len(pids) > 0, nil
 }
 
-func (e *ExecManager) Activate(appBundle string) error {
-	cmd := exec.Command("open", "-a", appBundle)
-	_ = cmd.Run()
-	return nil
+// NSRunningApplication needs no Automation permission, unlike System Events.
+const activateJS = `ObjC.import('AppKit');
+function run(argv) {
+  for (const pid of argv) {
+    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(Number(pid));
+    if (!app.isNil() && Number(app.activationPolicy) === 0) {
+      app.unhide;
+      app.activateWithOptions(0);
+      return;
+    }
+  }
+}`
+
+func (e *ExecManager) Activate(dataDir string) error {
+	pids, err := e.pidsForDataDir(dataDir)
+	if err != nil {
+		return err
+	}
+	args := []string{"-l", "JavaScript", "-e", activateJS}
+	for _, pid := range pids {
+		args = append(args, strconv.Itoa(pid))
+	}
+	return exec.Command("osascript", args...).Run()
 }
 
 func (e *ExecManager) Quit(dataDir string, timeout time.Duration) error {

@@ -36,7 +36,7 @@ func OpenAccount(p *paths.Paths, pm process.Manager, acct *account.Account) erro
 	}
 
 	if running {
-		pm.Activate(p.App)
+		pm.Activate(data)
 		fmt.Printf("✓ %s is already open — bringing it to the front.\n", acct.Meta.Name)
 		return nil
 	}
