@@ -17,7 +17,7 @@ import (
 
 var version = "dev"
 
-var reserved = []string{"open", "add", "ls", "rm", "doctor", "config", "all", "run", "skills", "backup", "restore"}
+var reserved = []string{"open", "add", "ls", "rm", "doctor", "config", "all", "run", "dock", "skills", "backup", "restore"}
 
 func main() {
 	sigCh := make(chan os.Signal, 1)
@@ -128,6 +128,16 @@ func parseAndRun(p *paths.Paths, pm process.Manager, args []string) error {
 		}
 		return commands.Run(p, acct, argv)
 
+	case "dock":
+		if len(args) < 3 {
+			return fmt.Errorf("missing account name — usage: clauds dock <name>")
+		}
+		acct, err := account.Resolve(p, args[2])
+		if err != nil {
+			return err
+		}
+		return commands.Dock(p, acct)
+
 	case "skills":
 		if len(args) < 3 || args[2] != "sync" {
 			return fmt.Errorf("usage: clauds skills sync")
@@ -190,6 +200,7 @@ USAGE
   clauds all                 open every account's window
   clauds add <name>          save a new account
   clauds run <name> [-- cmd] run cmd (default: claude) with that account's Claude Code config
+  clauds dock <name>         make a Dock shortcut in ~/Applications
   clauds skills sync         copy accounts' own claude.ai skills into ~/.claude/skills
   clauds backup [--settings-only] [file]
                              save settings, accounts and chats to a .tar.gz

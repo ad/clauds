@@ -45,6 +45,7 @@ clauds                                    # interactive picker
 | `clauds all` | Open every account |
 | `clauds add <name>` | Create a new account |
 | `clauds run <name> [-- cmd]` | Run `cmd` (default `claude`) with that account's Claude Code config |
+| `clauds dock <name>` | Make a Dock shortcut for that account in `~/Applications` |
 | `clauds skills sync` | Copy accounts' own claude.ai skills into `~/.claude/skills` |
 | `clauds backup [--settings-only] [file]` | Save settings, accounts and chats to a `.tar.gz` |
 | `clauds restore <file>` | Add a backup to this Mac without overwriting anything |
@@ -119,6 +120,18 @@ clauds can symlink each account's `claude-code-sessions` folder to a shared loca
 clauds config set share-code-sessions on
 ```
 
+## Dock shortcuts
+
+```bash
+clauds dock work    # creates ~/Applications/Claude work.app
+```
+
+Drag the new app to the Dock. A click opens the work window, or brings it to the front if it is already open. Its icon is Claude's, recolored per account, with the account name on it.
+
+The shortcut runs `clauds open <name>` by the absolute path of the clauds that made it. Rerun `clauds dock <name>` after moving clauds. `clauds rm` deletes the shortcut too.
+
+Account windows still run from `Claude.app`, so each open account adds its own plain Claude icon to the Dock. The shortcut itself never shows a running dot.
+
 ## Backup and moving to another Mac
 
 ```bash
@@ -178,6 +191,7 @@ clauds/
 │   ├── codesessions/        # meld/chat symlink management
 │   ├── commands/            # command implementations + picker
 │   ├── config/              # tool configuration + resolution
+│   ├── dock/                # Dock shortcut .app bundles
 │   ├── doctor/              # environment health checks
 │   ├── paths/               # filesystem paths + shared helpers
 │   └── process/             # process management interface
@@ -196,6 +210,8 @@ cmd/clauds ──→ commands ──→ account
                   ├─→ codesessions
                   │
                   ├─→ doctor ──→ account, config, codesessions
+                  │
+                  ├─→ dock
                   │
                   ├─→ process
                   │

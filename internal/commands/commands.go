@@ -16,6 +16,7 @@ import (
 	"github.com/ad/clauds/internal/claudeconfig"
 	"github.com/ad/clauds/internal/codesessions"
 	"github.com/ad/clauds/internal/config"
+	"github.com/ad/clauds/internal/dock"
 	"github.com/ad/clauds/internal/doctor"
 	"github.com/ad/clauds/internal/paths"
 	"github.com/ad/clauds/internal/process"
@@ -151,6 +152,9 @@ func RemoveAccount(p *paths.Paths, pm process.Manager, acct *account.Account) er
 
 	if err := account.Delete(acct); err != nil {
 		return err
+	}
+	if err := dock.Remove(shortcutsDir(p), acct.Meta.Name); err != nil {
+		fmt.Fprintf(os.Stderr, "note: %s; remove it by hand.\n", err)
 	}
 
 	fmt.Printf("✓ Removed %s.\n", acct.Meta.Name)
