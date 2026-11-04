@@ -46,6 +46,8 @@ clauds                                    # interactive picker
 | `clauds add <name>` | Create a new account |
 | `clauds run <name> [-- cmd]` | Run `cmd` (default `claude`) with that account's Claude Code config |
 | `clauds skills sync` | Copy accounts' own claude.ai skills into `~/.claude/skills` |
+| `clauds backup [--settings-only] [file]` | Save settings, accounts and chats to a `.tar.gz` |
+| `clauds restore <file>` | Add a backup to this Mac without overwriting anything |
 | `clauds ls` | List saved accounts |
 | `clauds rm <name>` | Remove an account |
 | `clauds doctor` | Check environment health |
@@ -117,6 +119,26 @@ clauds can symlink each account's `claude-code-sessions` folder to a shared loca
 clauds config set share-code-sessions on
 ```
 
+## Backup and moving to another Mac
+
+```bash
+clauds backup                              # everything below, to clauds-backup-<date>.tar.gz
+clauds backup --settings-only shared.tar.gz
+clauds restore clauds-backup-<date>.tar.gz # on the other Mac
+```
+
+A backup holds:
+
+- The shared Claude Code config from `~/.claude` (the same set listed under Claude Code isolation), with symlinked skills copied as real files. `.venv`, `venv`, `node_modules` and `__pycache__` are skipped.
+- `mcpServers` from `~/.claude.json` and the clauds `config.json`.
+- Without `--settings-only`: every account, its Desktop MCP servers (`claude_desktop_config.json`), its Code chats and memory (`projects`, `history.jsonl`), plus `~/.claude/projects` and `~/.claude/history.jsonl`.
+
+Sign-in never travels: Claude keeps it in the Keychain. After a restore, open each account and log in again. Desktop caches, chats in the Chat tab (they live on claude.ai) and Code tab session lists are not included.
+
+Restore only adds. An existing file stays, an account with the same name gets only the chats it lacks, MCP servers merge by name. So a restore that stopped halfway can simply be run again. Paths under the old home folder are rewritten to the new one, so a different username works. Quit Claude Code before restoring: it rewrites `~/.claude.json`.
+
+To share settings with someone, use `--settings-only`: no accounts or chats go in. It still holds your `CLAUDE.md`, hooks, `settings.json` env and MCP server env, which may include tokens. Restoring someone else's backup installs their hooks, and hooks are code that runs on your machine.
+
 ## Account resolution
 
 When you type `clauds work`, it resolves by:
@@ -152,6 +174,7 @@ clauds/
 │   └── main.go              # entry point, CLI dispatch
 ├── internal/
 │   ├── account/             # account model, CRUD, resolution
+│   ├── backup/              # backup archive create + restore
 │   ├── codesessions/        # meld/chat symlink management
 │   ├── commands/            # command implementations + picker
 │   ├── config/              # tool configuration + resolution

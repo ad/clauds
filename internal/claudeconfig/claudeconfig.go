@@ -23,7 +23,7 @@ func Dir(acct *account.Account) string {
 	return filepath.Join(acct.Dir, DirName)
 }
 
-func shared(src string) ([]string, error) {
+func Shared(src string) ([]string, error) {
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -33,12 +33,15 @@ func shared(src string) ([]string, error) {
 	}
 	var names []string
 	for _, e := range entries {
-		n := e.Name()
-		if strings.HasSuffix(n, ".md") || slices.Contains(sharedNames, n) {
-			names = append(names, n)
+		if IsShared(e.Name()) {
+			names = append(names, e.Name())
 		}
 	}
 	return names, nil
+}
+
+func IsShared(name string) bool {
+	return strings.HasSuffix(name, ".md") || slices.Contains(sharedNames, name)
 }
 
 func Ensure(acct *account.Account, src, srcJSON string) error {
@@ -47,7 +50,7 @@ func Ensure(acct *account.Account, src, srcJSON string) error {
 		return fmt.Errorf("creating %s: %w", dir, err)
 	}
 
-	names, err := shared(src)
+	names, err := Shared(src)
 	if err != nil {
 		return err
 	}
@@ -92,7 +95,7 @@ func seedClaudeJSON(dst, srcJSON string) error {
 }
 
 func Drifted(acct *account.Account, src string) []string {
-	names, _ := shared(src)
+	names, _ := Shared(src)
 	var out []string
 	for _, n := range names {
 		target, err := os.Readlink(filepath.Join(Dir(acct), n))

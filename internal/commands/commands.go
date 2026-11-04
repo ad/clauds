@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ad/clauds/internal/account"
+	"github.com/ad/clauds/internal/backup"
 	"github.com/ad/clauds/internal/claudeconfig"
 	"github.com/ad/clauds/internal/codesessions"
 	"github.com/ad/clauds/internal/config"
@@ -356,6 +357,56 @@ func SyncSkills(p *paths.Paths) error {
 	}
 	fmt.Printf("✓ Synced %d skill(s) into %s.\n", copied, dst)
 	return nil
+}
+
+func Backup(p *paths.Paths, file string, full bool) error {
+	if file == "" {
+		file = "clauds-backup-" + Now() + ".tar.gz"
+	}
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return err
+	}
+	if err := backup.Create(p, f, full); err != nil {
+		f.Close()
+		os.Remove(file)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	fmt.Printf("✓ Saved %s.\n", file)
+	if !full {
+		fmt.Println("  Settings only: no accounts, chats or memory.")
+	}
+	fmt.Println("  It holds your CLAUDE.md, hooks and MCP env: share it only with people you trust.")
+	return nil
+}
+
+func Restore(p *paths.Paths, file string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	rep, err := backup.Restore(p, f)
+	if rep != nil {
+		for _, n := range rep.Accounts {
+			fmt.Printf("✓ account %s\n", n)
+		}
+		for _, n := range rep.MergedAccounts {
+			fmt.Printf("· account %s already exists, added its missing chats\n", n)
+		}
+		for _, n := range rep.MCPAdded {
+			fmt.Printf("✓ MCP server %s\n", n)
+		}
+		fmt.Printf("✓ Restored %d file(s), kept %d existing.\n", rep.Added, rep.Kept)
+		if len(rep.Accounts) > 0 {
+			fmt.Println("  Sign in again: open each account with `clauds <name>`, and `clauds run <name>` for the terminal.")
+		}
+	}
+	return err
 }
 
 func Now() string {

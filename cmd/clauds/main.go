@@ -17,7 +17,7 @@ import (
 
 var version = "dev"
 
-var reserved = []string{"open", "add", "ls", "rm", "doctor", "config", "all", "run", "skills"}
+var reserved = []string{"open", "add", "ls", "rm", "doctor", "config", "all", "run", "skills", "backup", "restore"}
 
 func main() {
 	sigCh := make(chan os.Signal, 1)
@@ -134,6 +134,25 @@ func parseAndRun(p *paths.Paths, pm process.Manager, args []string) error {
 		}
 		return commands.SyncSkills(p)
 
+	case "backup":
+		file := ""
+		for _, a := range args[2:] {
+			if a == "--settings-only" {
+				continue
+			}
+			if strings.HasPrefix(a, "-") {
+				return fmt.Errorf("unknown flag %s — usage: clauds backup [--settings-only] [file]", a)
+			}
+			file = a
+		}
+		return commands.Backup(p, file, !hasFlag(args, "--settings-only"))
+
+	case "restore":
+		if len(args) < 3 {
+			return fmt.Errorf("missing backup file — usage: clauds restore <file>")
+		}
+		return commands.Restore(p, args[2])
+
 	case "ls":
 		return commands.List(p, pm, hasFlag(args, "--json"))
 
@@ -172,6 +191,9 @@ USAGE
   clauds add <name>          save a new account
   clauds run <name> [-- cmd] run cmd (default: claude) with that account's Claude Code config
   clauds skills sync         copy accounts' own claude.ai skills into ~/.claude/skills
+  clauds backup [--settings-only] [file]
+                             save settings, accounts and chats to a .tar.gz
+  clauds restore <file>      add a backup here without overwriting anything
   clauds ls                  list saved accounts
   clauds rm <name>           forget an account
   clauds doctor              check environment health
@@ -186,6 +208,7 @@ EXAMPLES
   clauds add work --email you@company.com
   clauds personal
   clauds run work -- claude --resume
+  clauds backup --settings-only shared.tar.gz
   clauds ls --json`)
 }
 
